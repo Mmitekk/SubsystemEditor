@@ -8,11 +8,12 @@
  * Base EditorSubsystem class with Blueprint support,
  * lifecycle events, and a dynamic type-safe getter node.
  *
- * ⚠️ IMPORTANT: Replace YOUREDITORMODULE_API with your editor module API macro (e.g., YOURPROJECTEDITOR_API).
- * This class must live in an Editor-only module (e.g., YourProjectEditor).
+ * ⚠️ IMPORTANT: this file must live in an Editor-only module.
+ * Replace YOURPROJECTEDITOR_API with your editor module API macro
+ * (module name in ALL_CAPS + _API, e.g. YourProjectEditor -> YOURPROJECTEDITOR_API).
  */
 UCLASS(Blueprintable, BlueprintType)
-class YOUREDITORMODULE_API USubsystemEditor : public UEditorSubsystem
+class YOURPROJECTEDITOR_API USubsystemEditor : public UEditorSubsystem
 {
 	GENERATED_BODY()
 

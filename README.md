@@ -14,18 +14,64 @@
 
 `USubsystemEditor` is a C++ base class that enables creating and extending **Editor Subsystems** directly inside Blueprints in Unreal Engine 5. By default, Unreal Engine does not allow creating Blueprint classes directly from `UEditorSubsystem`. This class bridges that gap while adding built-in lifecycle events and a dynamic type-safe getter node — same idea as `USubsystemGameInstance`, but for the Editor.
 
-### ⚠️ IMPORTANT (1): Module API Macro
-When adding these files to your project, replace **`YOUREDITORMODULE_API`** in `SubsystemEditor.h` with your own editor module API macro (e.g., `MYGAMEEDITOR_API`, `YOURPROJECTEDITOR_API`). Otherwise the project will fail to compile.
+### ⚠️ IMPORTANT: why an Editor-only module is required
+`UEditorSubsystem` exists **only in the Unreal Editor** — it is stripped out of packaged games. If you put `USubsystemEditor` into your runtime game module (e.g. `Source/YourProject/`), packaging will fail or the code will be dead weight in the shipping build. The correct place is a separate module of type `Editor` (e.g. `Source/YourProjectEditor/`), which the engine loads only in the Editor.
 
-### ⚠️ IMPORTANT (2): Editor-only module
-`UEditorSubsystem` works **only in the Unreal Editor** (it does not exist in a packaged game).
-- Place these files in an **Editor-only module** (e.g., `Source/YourProjectEditor/`), not in the runtime game module.
-- Add the required dependencies to your editor module's `YourProjectEditor.Build.cs`:
+This repository already contains **all module files** — you just copy them into your project, rename the placeholders to your project name, and register the module. No need to write `Build.cs` or module boilerplate by hand.
+
+### Files in this repo → where they go in your project
+| File in this repo | Copy to (in your project) |
+|---|---|
+| `Source/YourProjectEditor/YourProjectEditor.Build.cs` | `Source/<YourProject>Editor/<YourProject>Editor.Build.cs` |
+| `Source/YourProjectEditor/Public/YourProjectEditor.h` | `Source/<YourProject>Editor/Public/<YourProject>Editor.h` |
+| `Source/YourProjectEditor/Private/YourProjectEditor.cpp` | `Source/<YourProject>Editor/Private/<YourProject>Editor.cpp` |
+| `Source/YourProjectEditor/Public/SubsystemEditor.h` | `Source/<YourProject>Editor/Public/SubsystemEditor.h` |
+| `Source/YourProjectEditor/Private/SubsystemEditor.cpp` | `Source/<YourProject>Editor/Private/SubsystemEditor.cpp` |
+
+Example: if your project is called `KingdomOfIsrion`, the module folder becomes `Source/KingdomOfIsrionEditor/`.
+
+### Setup step by step
+**Step 1 — Copy the module.** Copy the whole `Source/YourProjectEditor/` folder from this repo into your project's `Source/` folder.
+
+**Step 2 — Rename placeholders to your project name.** Three things must be renamed consistently (example for `KingdomOfIsrion`):
+1. Folder and file names: `YourProjectEditor` → `KingdomOfIsrionEditor` (folder, `.Build.cs`, module `.h` / `.cpp`).
+2. Inside `KingdomOfIsrionEditor.Build.cs`: `public class YourProjectEditor` → `public class KingdomOfIsrionEditor`, and the constructor name likewise.
+3. Inside module `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, and `IMPLEMENT_MODULE(FDefaultModuleImpl, YourProjectEditor)` → `IMPLEMENT_MODULE(FDefaultModuleImpl, KingdomOfIsrionEditor)`.
+4. Inside `SubsystemEditor.h`: `YOURPROJECTEDITOR_API` → `KINGDOMOFISRIONEDITOR_API` (rule: module name in ALL_CAPS + `_API`).
+
+The `SubsystemEditor.h` / `.cpp` file names and the `USubsystemEditor` class name stay as they are.
+
+**Step 3 — Dependencies (already in the .Build.cs).** The provided `YourProjectEditor.Build.cs` already declares everything needed — no edits required:
 ```csharp
 PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "EditorSubsystem" });
 PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
 ```
-- `GetCustomSubsystem` returns `null` outside the Editor (packaged game / commandlet without `GEditor`) — this is expected.
+(`EditorSubsystem` gives you `UEditorSubsystem`; `UnrealEd` gives you `GEditor` used by the getter.)
+
+**Step 4 — Register the module in your `.uproject`.** Open `YourProject.uproject` and add the Editor module to the `Modules` array (keep the existing runtime module entry):
+```json
+"Modules": [
+	{
+		"Name": "YourProject",
+		"Type": "Runtime",
+		"LoadingPhase": "Default",
+		"AdditionalDependencies": [ "Engine" ]
+	},
+	{
+		"Name": "YourProjectEditor",
+		"Type": "Editor",
+		"LoadingPhase": "Default"
+	}
+]
+```
+
+**Step 5 — Add the module to the Editor target.** Open `Source/YourProjectEditor.Target.cs` (every C++ project already has one) and extend `ExtraModuleNames`:
+```csharp
+ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } );
+```
+(Do **not** add the Editor module to the game `YourProject.Target.cs` — it stays Editor-only.)
+
+**Step 6 — Generate and compile.** Right-click your `.uproject` → **Generate Visual Studio project files**, then compile (IDE or Editor). If you named everything consistently, the build succeeds and `USubsystemEditor` appears in the Editor's Blueprint class picker.
 
 ### Features
 - **Blueprintable**: Inherit your own Blueprint Editor Subsystems (e.g., `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`) directly from this class.
@@ -33,27 +79,21 @@ PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
 - **Custom Getter Node (`Get Custom Subsystem`)**: Static Blueprint Pure node that automatically changes its return pin type based on the selected subsystem class (`DeterminesOutputType`). No manual casting, no broken wires.
 - No `WorldContext` needed: Editor subsystems are global to the Editor session, unlike Game Instance subsystems.
 
-### How to Use
-1. **Setup C++ files**: Place `SubsystemEditor.h` / `SubsystemEditor.cpp` into `Source/YourProjectEditor/`. Fix the API macro (see above). Add `EditorSubsystem` (+ `UnrealEd` for `GEditor`) to `Build.cs`. Compile.
-2. **Create a Blueprint Subsystem**: Content Browser → Right-click → **Blueprint Class** → All Classes → search `SubsystemEditor` → create (e.g., `BP_SubsystemLevelAudit`).
-3. **Handle lifecycle**: Open the Blueprint → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
-4. **Access in Editor Blueprints** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
-   - Right-click → **Get Custom Subsystem** → set **Subsystem Class** to your Blueprint (e.g., `BP_SubsystemLevelAudit`).
+### How to use (after setup)
+1. **Create a Blueprint Subsystem**: Content Browser → Right-click → **Blueprint Class** → All Classes → search `SubsystemEditor` → create (e.g., `BP_SubsystemLevelAudit`).
+2. **Handle lifecycle**: Open the Blueprint → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
+3. **Access in Editor Blueprints** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
+   - Right-click → **Get Custom Subsystem** → set **Subsystem Class** to your Blueprint.
    - The output pin auto-casts to that type — call its functions / variables directly.
    - Standard alternative: the built-in **Get Editor Subsystem** node → set Class to your subsystem.
-5. **Optional — dedicated node per subsystem** (same trick as in the GameInstance repo): register the Blueprint in **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = your subsystems folder) to get a standalone node like `BP Subsystem Level Audit`. This is editor-time convenience only and is stored in `DefaultGame.ini`.
+4. **Optional — dedicated node per subsystem** (same trick as in the GameInstance repo): register the Blueprint in **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = your subsystems folder) to get a standalone node. Editor-time convenience only, stored in `DefaultGame.ini`.
 
 ### API Reference
 | Node / Event | Type | Description |
 |---|---|---|
 | `On Initialize` (`ReceiveInitialize`) | `BlueprintImplementableEvent` | Called from C++ `Initialize()` after the owning editor module is loaded. |
 | `On Deinitialize` (`ReceiveDeinitialize`) | `BlueprintImplementableEvent` | Called from C++ `Deinitialize()` before the owning editor module is unloaded. |
-| `Get Custom Subsystem` (`GetCustomSubsystem`) | `BlueprintPure`, `DeterminesOutputType = SubsystemClass` | `GEditor->GetEditorSubsystemBase(SubsystemClass)`. Returns `null` if class is null or `GEditor` is missing. |
-
-### Files
-- `SubsystemEditor.h` — base class + events + getter declaration.
-- `SubsystemEditor.cpp` — `Initialize` / `Deinitialize` forwarding to Blueprint + `GEditor` getter.
-- `CHANGELOG.md` — release history.
+| `Get Custom Subsystem` (`GetCustomSubsystem`) | `BlueprintPure`, `DeterminesOutputType = SubsystemClass` | `GEditor->GetEditorSubsystemBase(SubsystemClass)`. Returns `null` if class is null or `GEditor` is missing (packaged game / commandlet). |
 
 ---
 
@@ -62,43 +102,83 @@ PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
 
 `USubsystemEditor` — базовый C++ класс, который разрешает создание и наследование **Editor Subsystems** прямо в Блюпринтах Unreal Engine 5. По умолчанию движок не даёт наследовать Блюпринты напрямую от `UEditorSubsystem`. Этот класс закрывает пробел, добавляет события жизненного цикла и удобную динамическую ноду получения — та же идея, что и `USubsystemGameInstance`, но для редактора.
 
-### ⚠️ ВАЖНО (1): Макрос API модуля
-При добавлении файлов в свой проект замените **`YOUREDITORMODULE_API`** в `SubsystemEditor.h` на макрос API вашего editor-модуля (например, `MYGAMEEDITOR_API`, `YOURPROJECTEDITOR_API`). Без этого проект не скомпилируется.
+### ⚠️ ВАЖНО: зачем нужен отдельный Editor-модуль
+`UEditorSubsystem` существует **только в редакторе** — в упакованную игру он не попадает. Если положить `USubsystemEditor` в рантайм-модуль игры (например, `Source/YourProject/`), упаковка проекта сломается или код будет мёртвым грузом в shipping-сборке. Правильное место — отдельный модуль с типом `Editor` (например, `Source/YourProjectEditor/`), который движок грузит только в редакторе.
 
-### ⚠️ ВАЖНО (2): Только Editor-модуль
-`UEditorSubsystem` работает **только в редакторе** (в упакованной игре его нет).
-- Кладите файлы в **Editor-only модуль** (например, `Source/YourProjectEditor/`), а не в рантайм-модуль игры.
-- Добавьте зависимости в `YourProjectEditor.Build.cs`:
+В этом репозитории уже лежат **все файлы модуля** — их нужно просто скопировать в свой проект, переименовать плейсхолдеры под имя проекта и зарегистрировать модуль. Писать `Build.cs` и обвязку модуля вручную не нужно.
+
+### Файлы репозитория → куда класть в своём проекте
+| Файл в репозитории | Куда копировать (в вашем проекте) |
+|---|---|
+| `Source/YourProjectEditor/YourProjectEditor.Build.cs` | `Source/<ВашПроект>Editor/<ВашПроект>Editor.Build.cs` |
+| `Source/YourProjectEditor/Public/YourProjectEditor.h` | `Source/<ВашПроект>Editor/Public/<ВашПроект>Editor.h` |
+| `Source/YourProjectEditor/Private/YourProjectEditor.cpp` | `Source/<ВашПроект>Editor/Private/<ВашПроект>Editor.cpp` |
+| `Source/YourProjectEditor/Public/SubsystemEditor.h` | `Source/<ВашПроект>Editor/Public/SubsystemEditor.h` |
+| `Source/YourProjectEditor/Private/SubsystemEditor.cpp` | `Source/<ВашПроект>Editor/Private/SubsystemEditor.cpp` |
+
+Пример: если проект называется `KingdomOfIsrion`, папка модуля станет `Source/KingdomOfIsrionEditor/`.
+
+### Установка по шагам
+**Шаг 1 — Скопируйте модуль.** Скопируйте целиком папку `Source/YourProjectEditor/` из репозитория в папку `Source/` вашего проекта.
+
+**Шаг 2 — Переименуйте плейсхолдеры под имя проекта.** Три вещи переименовываются согласованно (пример для `KingdomOfIsrion`):
+1. Имена папки и файлов: `YourProjectEditor` → `KingdomOfIsrionEditor` (папка, `.Build.cs`, модульные `.h` / `.cpp`).
+2. Внутри `KingdomOfIsrionEditor.Build.cs`: `public class YourProjectEditor` → `public class KingdomOfIsrionEditor`, имя конструктора — аналогично.
+3. Внутри модульных `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, и `IMPLEMENT_MODULE(FDefaultModuleImpl, YourProjectEditor)` → `IMPLEMENT_MODULE(FDefaultModuleImpl, KingdomOfIsrionEditor)`.
+4. Внутри `SubsystemEditor.h`: `YOURPROJECTEDITOR_API` → `KINGDOMOFISRIONEDITOR_API` (правило: имя модуля КАПСОМ + `_API`).
+
+Имена файлов `SubsystemEditor.h` / `.cpp` и класса `USubsystemEditor` не меняются.
+
+**Шаг 3 — Зависимости (уже прописаны в .Build.cs).** Приложенный `YourProjectEditor.Build.cs` уже содержит всё нужное, править ничего не надо:
 ```csharp
 PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "EditorSubsystem" });
 PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
 ```
-- Вне редактора (packaged game / commandlet без `GEditor`) `GetCustomSubsystem` вернёт `null` — это нормально.
+(`EditorSubsystem` даёт `UEditorSubsystem`; `UnrealEd` даёт `GEditor` для геттера.)
+
+**Шаг 4 — Зарегистрируйте модуль в `.uproject`.** Откройте `YourProject.uproject` и добавьте Editor-модуль в массив `Modules` (существующую запись рантайм-модуля сохраните):
+```json
+"Modules": [
+	{
+		"Name": "YourProject",
+		"Type": "Runtime",
+		"LoadingPhase": "Default",
+		"AdditionalDependencies": [ "Engine" ]
+	},
+	{
+		"Name": "YourProjectEditor",
+		"Type": "Editor",
+		"LoadingPhase": "Default"
+	}
+]
+```
+
+**Шаг 5 — Добавьте модуль в Editor-Target.** Откройте `Source/YourProjectEditor.Target.cs` (он уже есть в каждом C++ проекте) и расширьте `ExtraModuleNames`:
+```csharp
+ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } );
+```
+(В игровой `YourProject.Target.cs` Editor-модуль **не** добавляйте — он остаётся только для редактора.)
+
+**Шаг 6 — Сгенерируйте и скомпилируйте.** ПКМ по `.uproject` → **Generate Visual Studio project files**, затем компиляция (IDE или редактор). Если всё переименовано согласованно, сборка пройдёт и `USubsystemEditor` появится в выборе родительского Blueprint-класса.
 
 ### Возможности
 - **Поддержка Блюпринтов**: создавайте свои Editor-сабсистемы (например, `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`), наследуясь от этого класса.
-- **События жизненного цикла**: `On Initialize` и `On Deinitialize` доступны через **My Blueprint → Functions → Override**.
-- **Кастомная нода (`Get Custom Subsystem`)**: статическая pure-нода, которая сама меняет тип выходного пина под выбранный класс (`DeterminesOutputType`). Никаких кастов и разорванных связей.
+- **События жизненного цикла**: `On Initialize` и `On Deinitialize` через **My Blueprint → Functions → Override**.
+- **Кастомная нода (`Get Custom Subsystem`)**: статическая pure-нода, сама меняет тип выходного пина под выбранный класс (`DeterminesOutputType`). Никаких кастов и разорванных связей.
 - `WorldContext` не нужен: editor-сабсистемы глобальны для сессии редактора (в отличие от Game Instance).
 
-### Как использовать
-1. **Файлы**: положите `SubsystemEditor.h` / `SubsystemEditor.cpp` в `Source/YourProjectEditor/`. Поправьте API-макрос (см. выше). Добавьте `EditorSubsystem` (+ `UnrealEd` для `GEditor`) в `Build.cs`. Скомпилируйте.
-2. **Блюпринт-сабсистема**: Content Browser → ПКМ → **Blueprint Class** → All Classes → найдите `SubsystemEditor` → создайте (например, `BP_SubsystemLevelAudit`).
-3. **Инициализация**: откройте Блюпринт → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
-4. **Получение в редакторских Блюпринтах** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
+### Как использовать (после установки)
+1. **Блюпринт-сабсистема**: Content Browser → ПКМ → **Blueprint Class** → All Classes → найдите `SubsystemEditor` → создайте (например, `BP_SubsystemLevelAudit`).
+2. **Инициализация**: откройте Блюпринт → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
+3. **Получение в редакторских Блюпринтах** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
    - Вызовите **Get Custom Subsystem** → в **Subsystem Class** выберите ваш блюпринт.
    - Выходной пин сам примет нужный тип — вызывайте функции и переменные напрямую.
    - Штатная альтернатива: встроенная нода **Get Editor Subsystem** → Class = ваша сабсистема.
-5. **Опционально — отдельная нода под каждую сабсистему** (тот же трюк, что и в GameInstance-репозитории): зарегистрируйте блюпринт в **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = папка сабсистем), чтобы получить ноду вида `BP Subsystem Level Audit`. Это удобство уровня редактора, хранится в `DefaultGame.ini`.
+4. **Опционально — отдельная нода под каждую сабсистему** (тот же трюк, что и в GameInstance-репозитории): зарегистрируйте блюпринт в **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = папка сабсистем). Это удобство уровня редактора, хранится в `DefaultGame.ini`.
 
 ### API
 | Нода / Ивент | Тип | Описание |
 |---|---|---|
 | `On Initialize` (`ReceiveInitialize`) | `BlueprintImplementableEvent` | Вызывается из C++ `Initialize()` после загрузки editor-модуля. |
 | `On Deinitialize` (`ReceiveDeinitialize`) | `BlueprintImplementableEvent` | Вызывается из C++ `Deinitialize()` перед выгрузкой editor-модуля. |
-| `Get Custom Subsystem` (`GetCustomSubsystem`) | `BlueprintPure`, `DeterminesOutputType = SubsystemClass` | `GEditor->GetEditorSubsystemBase(SubsystemClass)`. Возвращает `null`, если класс пуст или нет `GEditor`. |
-
-### Файлы
-- `SubsystemEditor.h` — базовый класс + ивенты + декларация геттера.
-- `SubsystemEditor.cpp` — проброс `Initialize` / `Deinitialize` в Блюпринт + геттер через `GEditor`.
-- `CHANGELOG.md` — история релизов.
+| `Get Custom Subsystem` (`GetCustomSubsystem`) | `BlueprintPure`, `DeterminesOutputType = SubsystemClass` | `GEditor->GetEditorSubsystemBase(SubsystemClass)`. Возвращает `null`, если класс пуст или нет `GEditor` (упакованная игра / commandlet). |
