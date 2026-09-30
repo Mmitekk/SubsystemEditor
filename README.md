@@ -80,13 +80,20 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - No `WorldContext` needed: Editor subsystems are global to the Editor session, unlike Game Instance subsystems.
 
 ### How to use (after setup)
-1. **Create a Blueprint Subsystem**: Content Browser → Right-click → **Blueprint Class** → All Classes → search `SubsystemEditor` → create (e.g., `BP_SubsystemLevelAudit`).
+1. **Create a Blueprint Subsystem**: Content Browser → Right-click → **Blueprint Class** → All Classes → search `SubsystemEditor` → create (e.g., `BP_SubsystemLevelAudit`). Put it in a dedicated folder, e.g. `Content/Blueprints/Editor/Subsystems/` (see Packaging below — this folder must be excluded from cooking).
 2. **Handle lifecycle**: Open the Blueprint → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
 3. **Access in Editor Blueprints** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
    - Right-click → **Get Custom Subsystem** → set **Subsystem Class** to your Blueprint.
    - The output pin auto-casts to that type — call its functions / variables directly.
    - Standard alternative: the built-in **Get Editor Subsystem** node → set Class to your subsystem.
 4. **Optional — dedicated node per subsystem** (same trick as in the GameInstance repo): register the Blueprint in **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = your subsystems folder) to get a standalone node. Editor-time convenience only, stored in `DefaultGame.ini`.
+
+### Packaging (important)
+- **C++ side — nothing to do.** Modules with `"Type": "Editor"` in the `.uproject` are simply not compiled for game targets (`WindowsNoEditor`, etc.), so the Editor module never ends up in a packaged build.
+- **Blueprint side — exclusion is required.** The cooker has no editor-only classes, so any cooked asset that references `SubsystemEditor` will fail the cook. To avoid this:
+  1. Keep all Editor-subsystem Blueprints in a dedicated folder, e.g. `Content/Blueprints/Editor/`.
+  2. Open **Project Settings → Packaging → Directories to Never Cook** and add that folder.
+- **Where Blueprints live:** always somewhere under `Content/` (`.uasset` files cannot exist elsewhere). The `/All/C++ Classes/...` view in the Content Browser only *displays* code classes — you cannot (and must not) place Blueprints there; create them in any `Content/` folder you like.
 
 ### API Reference
 | Node / Event | Type | Description |
@@ -168,13 +175,20 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - `WorldContext` не нужен: editor-сабсистемы глобальны для сессии редактора (в отличие от Game Instance).
 
 ### Как использовать (после установки)
-1. **Блюпринт-сабсистема**: Content Browser → ПКМ → **Blueprint Class** → All Classes → найдите `SubsystemEditor` → создайте (например, `BP_SubsystemLevelAudit`).
+1. **Блюпринт-сабсистема**: Content Browser → ПКМ → **Blueprint Class** → All Classes → найдите `SubsystemEditor` → создайте (например, `BP_SubsystemLevelAudit`). Кладите в отдельную папку, например `Content/Blueprints/Editor/Subsystems/` (см. раздел про упаковку ниже — её нужно исключить из кука).
 2. **Инициализация**: откройте Блюпринт → **My Blueprint → Functions → Override** → `On Initialize` / `On Deinitialize`.
 3. **Получение в редакторских Блюпринтах** (Editor Utility Widget / Editor Utility Blueprint / Blutility):
    - Вызовите **Get Custom Subsystem** → в **Subsystem Class** выберите ваш блюпринт.
    - Выходной пин сам примет нужный тип — вызывайте функции и переменные напрямую.
    - Штатная альтернатива: встроенная нода **Get Editor Subsystem** → Class = ваша сабсистема.
 4. **Опционально — отдельная нода под каждую сабсистему** (тот же трюк, что и в GameInstance-репозитории): зарегистрируйте блюпринт в **Project Settings → Asset Manager** (Base Class = `SubsystemEditor`, Has Blueprint Classes = true, Directory = папка сабсистем). Это удобство уровня редактора, хранится в `DefaultGame.ini`.
+
+### Упаковка проекта (важно)
+- **C++ сторона — делать ничего не надо.** Модули с `"Type": "Editor"` в `.uproject` просто не компилируются для игровых таргетов (`WindowsNoEditor` и т.п.), поэтому Editor-модуль никогда не попадает в упакованную сборку.
+- **Блюпринты — исключение обязательно.** У кукера нет editor-only классов, поэтому любой запекаемый ассет, ссылающийся на `SubsystemEditor`, уронит упаковку с ошибкой. Чтобы этого не было:
+  1. Держите все блюпринты Editor-сабсистем в отдельной папке, например `Content/Blueprints/Editor/`.
+  2. Откройте **Project Settings → Packaging → Directories to Never Cook** и добавьте туда эту папку.
+- **Где живут блюпринты:** всегда где-то внутри `Content/` (файлы `.uasset` больше нигде существовать не могут). Вкладка `/All/C++ Classes/...` в Content Browser только *показывает* классы кода — класть туда блюпринты нельзя (да движок и не даст); создавайте их в любой папке `Content/` на ваш вкус.
 
 ### API
 | Нода / Ивент | Тип | Описание |
