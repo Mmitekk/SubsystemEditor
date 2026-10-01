@@ -12,6 +12,7 @@ public class YourProjectEditor : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "EditorSubsystem" });
 
 		// UnrealEd provides GEditor, used by USubsystemEditor::GetCustomSubsystem().
-		PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
+		// AssetRegistry is used to discover Blueprint Editor Subsystems at editor startup.
+		PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AssetRegistry" });
 	}
 }

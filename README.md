@@ -36,7 +36,7 @@ Example: if your project is called `KingdomOfIsrion`, the module folder becomes 
 **Step 2 — Rename placeholders to your project name.** Three things must be renamed consistently (example for `KingdomOfIsrion`):
 1. Folder and file names: `YourProjectEditor` → `KingdomOfIsrionEditor` (folder, `.Build.cs`, module `.h` / `.cpp`).
 2. Inside `KingdomOfIsrionEditor.Build.cs`: `public class YourProjectEditor` → `public class KingdomOfIsrionEditor`, and the constructor name likewise.
-3. Inside module `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, and `IMPLEMENT_MODULE(FDefaultModuleImpl, YourProjectEditor)` → `IMPLEMENT_MODULE(FDefaultModuleImpl, KingdomOfIsrionEditor)`.
+3. Inside module `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, `FYourProjectEditorModule` → `FKingdomOfIsrionEditorModule`, and `IMPLEMENT_MODULE(FYourProjectEditorModule, YourProjectEditor)` → `IMPLEMENT_MODULE(FKingdomOfIsrionEditorModule, KingdomOfIsrionEditor)`.
 4. Inside `SubsystemEditor.h`: `YOURPROJECTEDITOR_API` → `KINGDOMOFISRIONEDITOR_API` (rule: module name in ALL_CAPS + `_API`).
 
 The `SubsystemEditor.h` / `.cpp` file names and the `USubsystemEditor` class name stay as they are.
@@ -44,9 +44,9 @@ The `SubsystemEditor.h` / `.cpp` file names and the `USubsystemEditor` class nam
 **Step 3 — Dependencies (already in the .Build.cs).** The provided `YourProjectEditor.Build.cs` already declares everything needed — no edits required:
 ```csharp
 PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "EditorSubsystem" });
-PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
+PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AssetRegistry" });
 ```
-(`EditorSubsystem` gives you `UEditorSubsystem`; `UnrealEd` gives you `GEditor` used by the getter.)
+(`EditorSubsystem` gives you `UEditorSubsystem`; `UnrealEd` gives you `GEditor` used by the getter; `AssetRegistry` is used to discover Blueprint subsystems at editor startup.)
 
 **Step 4 — Register the module in your `.uproject`.** Open `YourProject.uproject` and add the Editor module to the `Modules` array (keep the existing runtime module entry):
 ```json
@@ -77,7 +77,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Blueprintable**: Inherit your own Blueprint Editor Subsystems (e.g., `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`) directly from this class.
 - **Lifecycle Events**: Automatically exposes `On Initialize` and `On Deinitialize` events to Blueprints (override via **My Blueprint → Functions → Override**).
 - **Custom Getter Node (`Get Custom Subsystem`)**: Static Blueprint Pure node that automatically changes its return pin type based on the selected subsystem class (`DeterminesOutputType`). No manual casting, no broken wires.
-- **Auto-loading on Startup**: The editor module automatically scans and loads Blueprint editor subsystems at startup via Asset Registry, ensuring `Initialize()` fires reliably.
+- **Auto-activation on Startup**: the editor module finds Blueprint subsystems via the Asset Registry after editor init (`OnPostEngineInit`) and registers them with `ActivateExternalSubsystem`, so `Initialize()` reliably fires. (Background: `UEditorSubsystem` is a *dynamic* subsystem — the engine auto-instances native `/Script/*` classes only, never Blueprints — hence this step is mandatory, unlike Game Instance subsystems.)
 - No `WorldContext` needed: Editor subsystems are global to the Editor session, unlike Game Instance subsystems.
 
 ### How to use (after setup)
@@ -132,7 +132,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 **Шаг 2 — Переименуйте плейсхолдеры под имя проекта.** Три вещи переименовываются согласованно (пример для `KingdomOfIsrion`):
 1. Имена папки и файлов: `YourProjectEditor` → `KingdomOfIsrionEditor` (папка, `.Build.cs`, модульные `.h` / `.cpp`).
 2. Внутри `KingdomOfIsrionEditor.Build.cs`: `public class YourProjectEditor` → `public class KingdomOfIsrionEditor`, имя конструктора — аналогично.
-3. Внутри модульных `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, и `IMPLEMENT_MODULE(FDefaultModuleImpl, YourProjectEditor)` → `IMPLEMENT_MODULE(FDefaultModuleImpl, KingdomOfIsrionEditor)`.
+3. Внутри модульных `.h` / `.cpp`: `#include "YourProjectEditor.h"` → `#include "KingdomOfIsrionEditor.h"`, `FYourProjectEditorModule` → `FKingdomOfIsrionEditorModule`, и `IMPLEMENT_MODULE(FYourProjectEditorModule, YourProjectEditor)` → `IMPLEMENT_MODULE(FKingdomOfIsrionEditorModule, KingdomOfIsrionEditor)`.
 4. Внутри `SubsystemEditor.h`: `YOURPROJECTEDITOR_API` → `KINGDOMOFISRIONEDITOR_API` (правило: имя модуля КАПСОМ + `_API`).
 
 Имена файлов `SubsystemEditor.h` / `.cpp` и класса `USubsystemEditor` не меняются.
@@ -140,9 +140,9 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 **Шаг 3 — Зависимости (уже прописаны в .Build.cs).** Приложенный `YourProjectEditor.Build.cs` уже содержит всё нужное, править ничего не надо:
 ```csharp
 PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "EditorSubsystem" });
-PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
+PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AssetRegistry" });
 ```
-(`EditorSubsystem` даёт `UEditorSubsystem`; `UnrealEd` даёт `GEditor` для геттера.)
+(`EditorSubsystem` даёт `UEditorSubsystem`; `UnrealEd` даёт `GEditor` для геттера; `AssetRegistry` нужен для поиска Блюпринт-сабсистем при старте редактора.)
 
 **Шаг 4 — Зарегистрируйте модуль в `.uproject`.** Откройте `YourProject.uproject` и добавьте Editor-модуль в массив `Modules` (существующую запись рантайм-модуля сохраните):
 ```json
@@ -173,7 +173,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Поддержка Блюпринтов**: создавайте свои Editor-сабсистемы (например, `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`), наследуясь от этого класса.
 - **События жизненного цикла**: `On Initialize` и `On Deinitialize` через **My Blueprint → Functions → Override**.
 - **Кастомная нода (`Get Custom Subsystem`)**: статическая pure-нода, сама меняет тип выходного пина под выбранный класс (`DeterminesOutputType`). Никаких кастов и разорванных связей.
-- **Автозагрузка при старте**: модуль редактора автоматически сканирует и подгружает Блюпринт-сабсистемы через Asset Registry, гарантируя вызов `Initialize()`.
+- **Авто-активация при старте**: модуль редактора находит Блюпринт-сабсистемы через Asset Registry после инициализации редактора (`OnPostEngineInit`) и регистрирует их через `ActivateExternalSubsystem`, поэтому `Initialize()` гарантированно вызывается. (Почему это нужно: `UEditorSubsystem` — *динамическая* сабсистема, движок автоматически создаёт только нативные классы из `/Script/*`, но никогда — блюпринты. Для Game Instance сабсистем этот шаг не нужен.)
 - `WorldContext` не нужен: editor-сабсистемы глобальны для сессии редактора (в отличие от Game Instance).
 
 ### Как использовать (после установки)
