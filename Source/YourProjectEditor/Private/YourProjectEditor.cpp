@@ -29,11 +29,14 @@ void FYourProjectEditorModule::StartupModule()
 	for (const FAssetData& Asset : AssetList)
 	{
 		// Check if the Blueprint inherits from USubsystemEditor by checking its NativeParentClass tag
-		FString ParentClassStr = Asset.GetTagValueRef<FString>(FBlueprintTags::NativeParentClass);
-		if (ParentClassStr.Contains(TEXT("SubsystemEditor")))
+		FString NativeParentClassStr;
+		if (Asset.GetTagValue(TEXT("NativeParentClass"), NativeParentClassStr))
 		{
-			// Load the asset into memory
-			Asset.GetAsset();
+			if (NativeParentClassStr.Contains(TEXT("SubsystemEditor")))
+			{
+				// Load the asset into memory
+				Asset.GetAsset();
+			}
 		}
 	}
 }

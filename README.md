@@ -77,6 +77,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Blueprintable**: Inherit your own Blueprint Editor Subsystems (e.g., `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`) directly from this class.
 - **Lifecycle Events**: Automatically exposes `On Initialize` and `On Deinitialize` events to Blueprints (override via **My Blueprint → Functions → Override**).
 - **Custom Getter Node (`Get Custom Subsystem`)**: Static Blueprint Pure node that automatically changes its return pin type based on the selected subsystem class (`DeterminesOutputType`). No manual casting, no broken wires.
+- **Auto-loading on Startup**: The editor module automatically scans and loads Blueprint editor subsystems at startup via Asset Registry, ensuring `Initialize()` fires reliably.
 - No `WorldContext` needed: Editor subsystems are global to the Editor session, unlike Game Instance subsystems.
 
 ### How to use (after setup)
@@ -172,6 +173,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Поддержка Блюпринтов**: создавайте свои Editor-сабсистемы (например, `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`), наследуясь от этого класса.
 - **События жизненного цикла**: `On Initialize` и `On Deinitialize` через **My Blueprint → Functions → Override**.
 - **Кастомная нода (`Get Custom Subsystem`)**: статическая pure-нода, сама меняет тип выходного пина под выбранный класс (`DeterminesOutputType`). Никаких кастов и разорванных связей.
+- **Автозагрузка при старте**: модуль редактора автоматически сканирует и подгружает Блюпринт-сабсистемы через Asset Registry, гарантируя вызов `Initialize()`.
 - `WorldContext` не нужен: editor-сабсистемы глобальны для сессии редактора (в отличие от Game Instance).
 
 ### Как использовать (после установки)
@@ -186,9 +188,9 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 ### Упаковка проекта (важно)
 - **C++ сторона — делать ничего не надо.** Модули с `"Type": "Editor"` в `.uproject` просто не компилируются для игровых таргетов (`WindowsNoEditor` и т.п.), поэтому Editor-модуль никогда не попадает в упакованную сборку.
 - **Блюпринты — исключение обязательно.** У кукера нет editor-only классов, поэтому любой запекаемый ассет, ссылающийся на `SubsystemEditor`, уронит упаковку с ошибкой. Чтобы этого не было:
-  1. Держите все блюпринты Editor-сабсистем в отдельной папке, например `Content/Blueprints/Editor/`.
+  1. Держите все блюпринты Editor-сабсистем в отдельной папку, например `Content/Blueprints/Editor/`.
   2. Откройте **Project Settings → Packaging → Directories to Never Cook** и добавьте туда эту папку.
-- **Где живут блюпринты:** всегда где-то внутри `Content/` (файлы `.uasset` больше нигде существовать не могут). Вкладка `/All/C++ Classes/...` в Content Browser только *показывает* классы кода — класть туда блюпринты нельзя (да движок и не даст); создавайте их в любой папке `Content/` на ваш вкус.
+- **Где живут блюпринты:** всегда где-то внутри `Content/` (`.uasset` файлы больше нигде существовать не могут). Вкладка `/All/C++ Classes/...` в Content Browser только *показывает* классы кода — класть туда блюпринты нельзя (да движок и не даст); создавайте их в любой папке `Content/` на ваш вкус.
 
 ### API
 | Нода / Ивент | Тип | Описание |
