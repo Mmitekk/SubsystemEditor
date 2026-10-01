@@ -77,7 +77,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Blueprintable**: Inherit your own Blueprint Editor Subsystems (e.g., `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`) directly from this class.
 - **Lifecycle Events**: Automatically exposes `On Initialize` and `On Deinitialize` events to Blueprints (override via **My Blueprint → Functions → Override**).
 - **Custom Getter Node (`Get Custom Subsystem`)**: Static Blueprint Pure node that automatically changes its return pin type based on the selected subsystem class (`DeterminesOutputType`). No manual casting, no broken wires.
-- **Auto-activation on Startup**: the editor module finds Blueprint subsystems via the Asset Registry after editor init (`OnPostEngineInit`) and registers them with `ActivateExternalSubsystem`, so `Initialize()` reliably fires. (Background: `UEditorSubsystem` is a *dynamic* subsystem — the engine auto-instances native `/Script/*` classes only, never Blueprints — hence this step is mandatory, unlike Game Instance subsystems.)
+- **Auto-activation on Startup**: the editor module finds Blueprint subsystems via the Asset Registry after editor init (`GetOnPostEngineInit`) and registers them with `ActivateExternalSubsystem`, so `Initialize()` reliably fires. (Background: `UEditorSubsystem` is a *dynamic* subsystem — the engine auto-instances native `/Script/*` classes only, never Blueprints — hence this step is mandatory, unlike Game Instance subsystems.)
 - No `WorldContext` needed: Editor subsystems are global to the Editor session, unlike Game Instance subsystems.
 
 ### How to use (after setup)
@@ -173,7 +173,7 @@ ExtraModuleNames.AddRange( new string[] { "YourProject", "YourProjectEditor" } )
 - **Поддержка Блюпринтов**: создавайте свои Editor-сабсистемы (например, `BP_SubsystemLevelAudit`, `BP_SubsystemAssetTools`), наследуясь от этого класса.
 - **События жизненного цикла**: `On Initialize` и `On Deinitialize` через **My Blueprint → Functions → Override**.
 - **Кастомная нода (`Get Custom Subsystem`)**: статическая pure-нода, сама меняет тип выходного пина под выбранный класс (`DeterminesOutputType`). Никаких кастов и разорванных связей.
-- **Авто-активация при старте**: модуль редактора находит Блюпринт-сабсистемы через Asset Registry после инициализации редактора (`OnPostEngineInit`) и регистрирует их через `ActivateExternalSubsystem`, поэтому `Initialize()` гарантированно вызывается. (Почему это нужно: `UEditorSubsystem` — *динамическая* сабсистема, движок автоматически создаёт только нативные классы из `/Script/*`, но никогда — блюпринты. Для Game Instance сабсистем этот шаг не нужен.)
+- **Авто-активация при старте**: модуль редактора находит Блюпринт-сабсистемы через Asset Registry после инициализации редактора (`GetOnPostEngineInit`) и регистрирует их через `ActivateExternalSubsystem`, поэтому `Initialize()` гарантированно вызывается. (Почему это нужно: `UEditorSubsystem` — *динамическая* сабсистема, движок автоматически создаёт только нативные классы из `/Script/*`, но никогда — блюпринты. Для Game Instance сабсистем этот шаг не нужен.)
 - `WorldContext` не нужен: editor-сабсистемы глобальны для сессии редактора (в отличие от Game Instance).
 
 ### Как использовать (после установки)

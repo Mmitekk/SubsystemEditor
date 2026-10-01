@@ -14,12 +14,12 @@ void FYourProjectEditorModule::StartupModule()
 {
 	// The editor subsystem collection does not exist yet at module startup,
 	// so activation is deferred until the editor finished initializing.
-	PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FYourProjectEditorModule::ActivateBlueprintEditorSubsystems);
+	PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FYourProjectEditorModule::ActivateBlueprintEditorSubsystems);
 }
 
 void FYourProjectEditorModule::ShutdownModule()
 {
-	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+	FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 	{
 		AssetRegistryModule->Get().OnFilesLoaded().Remove(FilesLoadedHandle);
@@ -29,7 +29,7 @@ void FYourProjectEditorModule::ShutdownModule()
 void FYourProjectEditorModule::ActivateBlueprintEditorSubsystems()
 {
 	// One-shot: never run twice.
-	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+	FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 

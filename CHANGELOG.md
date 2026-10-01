@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.0.1] - 2026-10-01
 ### Fixed
-- Blueprint Editor Subsystems never auto-instanced by the engine (`UEditorSubsystem` is a *dynamic* subsystem: only native `/Script/*` classes are collected). The editor module now discovers Blueprint subsystems via the Asset Registry and registers them with `FSubsystemCollectionBase::ActivateExternalSubsystem`, so `Initialize()` / `On Initialize` reliably fire. Activation is deferred in two stages: `FCoreDelegates::OnPostEngineInit` (subsystem collection must exist) then `IAssetRegistry::OnFilesLoaded` (background discovery must finish).
+- Blueprint Editor Subsystems never auto-instanced by the engine (`UEditorSubsystem` is a *dynamic* subsystem: only native `/Script/*` classes are collected). The editor module now discovers Blueprint subsystems via the Asset Registry and registers them with `FSubsystemCollectionBase::ActivateExternalSubsystem`, so `Initialize()` / `On Initialize` reliably fire. Activation is deferred in two stages: `FCoreDelegates::GetOnPostEngineInit\(\)` (subsystem collection must exist) then `IAssetRegistry::OnFilesLoaded` (background discovery must finish).
 - `YourProjectEditor.Build.cs`: added `AssetRegistry` to private dependencies.
 - README (EN / RU): documented why activation is mandatory for Editor (but not Game Instance) subsystems.
 
